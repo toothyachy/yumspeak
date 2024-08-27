@@ -7,6 +7,7 @@ yapf
 matplotlib
 pygeohash
 pytest
+jupyter
 seaborn
 numpy==1.23.5
 pandas==1.5.3
@@ -37,6 +38,15 @@ psycopg2-binary
 fastapi==0.108.0
 pytz
 uvicorn
+
 # tests
 httpx
 pytest-asyncio
+
+# scraper
+botasaurus
+botasaurus-server
+# botasaurus-api
+dateutils
+lxml
+regex
