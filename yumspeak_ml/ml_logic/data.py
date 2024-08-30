@@ -18,6 +18,31 @@ def add_lat_lng(df):
     df['longtitude'] = df['coordinates'].apply(lambda x: x[1])
     return df
 
+def get_postal_code(row):
+    # get postal code with with mapbox reverse geocoding
+    if isinstance(row['address'], str):
+        try:
+            match = re.search(r'\b\d{6}\b', row['address'])
+            postal_code = match.group(0)
+            row['postal_code'] = postal_code[:2]
+            return row
+        except:
+            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
+            row['address'] = g.json['postal']
+            row['postal_code'] = g.json['postal'][:2]
+            return row
+    else:
+        try:
+            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
+            row['address'] = g.json['postal']
+            row['postal_code'] = g.json['postal'][:2]
+            return row
+        except:
+            print(f'Error: {row['address']}')
+            return row['address']
+
+
+# clean dataset
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     #drop duplicates with subset 'place_id', 'name', 'reviews', 'address']
     df = df.drop_duplicates(subset=['place_id', 'name', 'reviews', 'address'])
@@ -37,31 +62,11 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # filter out places with coordinates outside of SG
     df = df[df['latitude'].between(left=1.129, right=1.493)]
     df = df[df['longtitude'].between(left=103.557, right=104.131)]
-
     df = df.reset_index(drop=True)
 
+    # get postal code with with mapbox reverse geocoding, extract district_code and region
+    df = df.apply(get_postal_code, axis=1)
+    df['district_code'] = df['postal_code'].map(POSTAL_TO_DISTRICT)
+    df['region'] = df['district_code'].map(DISTRICT_TO_REGION)
+
     return df
-
-
-
-##########
-def get_district_code(row):
-    if isinstance(row['address'], str):
-        try:
-            match = re.search(r'\b\d{6}\b', row['address'])
-            postal_code = match.group(0)
-            row['district_code'] = postal_code[:2]
-            return row
-        except:
-            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-            row['address'] = g.json['postal']
-            row['district_code'] = g.json['postal'][:2]
-            return row
-    else:
-        try:
-            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-            row['address'] = g.json['postal']
-            row['district_code'] = g.json['postal'][:2]
-            return row
-        except:
-            return(row['address'])
