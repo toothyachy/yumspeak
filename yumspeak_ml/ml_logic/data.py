@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+import ast
 import geocoder
 
 from yumspeak_ml.params import *
@@ -18,8 +19,7 @@ def add_lat_lng(df):
     df['longtitude'] = df['coordinates'].apply(lambda x: x[1])
     return df
 
-def get_postal_code(row):
-    # get postal code with with mapbox reverse geocoding
+'''
     if isinstance(row['address'], str):
         try:
             match = re.search(r'\b\d{6}\b', row['address'])
@@ -28,33 +28,51 @@ def get_postal_code(row):
             return row
         except:
             g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-            row['address'] = g.json['postal']
+            row['address'] = f"Singapore {g.json['postal']}"
             row['postal_code'] = g.json['postal'][:2]
             return row
     else:
         try:
             g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-            row['address'] = g.json['postal']
+            row['address'] = f"Singapore {g.json['postal']}"
             row['postal_code'] = g.json['postal'][:2]
             return row
         except:
-            print(f'Error: {row['address']}')
+            print(f"Error: {row['address']}")
             return row['address']
+'''
+
+def get_postal_code(row):
+    # get postal code with with mapbox reverse geocoding
+    try:
+        g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
+        row['full_postal_code'] = f"Singapore {g.json['postal']}"
+        row['postal_code'] = g.json['postal'][:2]
+        return row
+    except:
+        match = re.search(r'\b\d{6}\b', row['address'])
+        row['full_postal_code'] = match.group(0)
+        row['postal_code'] = row['full_postal_code'][:2]
+        return row
 
 
 # clean dataset
-def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+def clean_restaurant_data(df: pd.DataFrame) -> pd.DataFrame:
     #drop duplicates with subset 'place_id', 'name', 'reviews', 'address']
     df = df.drop_duplicates(subset=['place_id', 'name', 'reviews', 'address'])
 
     # remove irrelevant place based on main_categories
-    cats_to_remove = [cat.lower() for cat in CAT_TO_REMOVE]
+    cats_to_remove = [cat.lower() for cat in CATS_TO_REMOVE]
     mask = df['main_category'].str.lower().isin(cats_to_remove)
     df = df[~mask]
 
+    # remove irrelevant place based by name
+    #df = df[~df['name'].isin(NAME_TO_DROP)]
+    df = df[~df['place_id'].isin(PLACE_ID_TO_DROP)]
+
     # fill na in main_category and categories(as ['unknown'])
-    df['main_categories'] = df['main_categories'].fillna('unknown', inplace=True)
-    df['categories'] = df['categories'].fillna("['unknown']").apply(eval)
+    df['main_category'].fillna('unknown', inplace=True)
+    df['categories'] = df['categories'].fillna("['unknown']").apply(ast.literal_eval)
 
     # get lat lng from link (+coordinates, latitude, longitude)
     df = add_lat_lng(df)
