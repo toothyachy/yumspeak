@@ -40,13 +40,10 @@ def add_lat_lng(df):
         except:
             print(f"Error: {row['address']}")
             return row['address']
-'''
 
-def get_postal_code(row):
-    # get postal code with with mapbox reverse geocoding
     try:
         g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-        row['full_postal_code'] = f"Singapore {g.json['postal']}"
+        row['full_postal_code'] = g.json['postal']
         row['postal_code'] = g.json['postal'][:2]
         return row
     except:
@@ -54,6 +51,33 @@ def get_postal_code(row):
         row['full_postal_code'] = match.group(0)
         row['postal_code'] = row['full_postal_code'][:2]
         return row
+'''
+
+def get_postal_code(row):
+    # get postal code with with mapbox reverse geocoding
+    if isinstance(row['address'], str):
+        try:
+            match = re.search(r'\b\d{6}\b', row['address'])
+            postal_code = match.group(0)
+            row['full_postal_code'] = postal_code
+            row['postal_code'] = postal_code[:2]
+            return row
+        except:
+            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
+            row['address'] = f"Singapore {g.json['postal']}"
+            row['full_postal_code'] = g.json['postal']
+            row['postal_code'] = g.json['postal'][:2]
+            return row
+    else:
+        try:
+            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
+            row['address'] = f"Singapore {g.json['postal']}"
+            row['full_postal_code'] = g.json['postal']
+            row['postal_code'] = g.json['postal'][:2]
+            return row
+        except:
+            print(f"Error: {row['address']}")
+            return row['address']
 
 
 # clean dataset
@@ -72,6 +96,7 @@ def clean_restaurant_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # fill na in main_category and categories(as ['unknown'])
     df['main_category'].fillna('unknown', inplace=True)
+    df['main_category'] = df['main_category'].apply(lambda x: x.replace(' restaurant', ''))
     df['categories'] = df['categories'].fillna("['unknown']").apply(ast.literal_eval)
 
     # get lat lng from link (+coordinates, latitude, longitude)

@@ -46,7 +46,7 @@ CATS_TO_REMOVE = ['ATM', 'Accountant', 'Acupuncture clinic', 'Advertising agency
 'Non-governmental organization', 'Non-profit organization', 'Occupational therapist', 'Optician', 'Optometrist', 'Oral surgeon',
 'Organic food store', 'Otolaryngologist', 'Park', 'Parking lot', 'Pastry shop', 'Patisserie', 'Performing arts group', 'Performing arts theater',
 'Personal trainer', 'Pest control service', 'Pet Shop', 'Pharmacy', 'Photographer', 'Photography', 'Photography service',
-'Plant nursery', 'Plastic products supplier', 'Police station', 'Preschool', 'Print shop', 'Property Investment',
+'Plant nursery', 'Plastic products supplier', 'Playground', 'Police station', 'Preschool', 'Print shop', 'Property Investment',
 'Property management company', 'Pub', 'Public parking space', 'Publisher', 'Real estate agency', 'Real estate agent',
 'Real estate consultant', 'Real estate developer', 'Recording studio', 'Recruiter', 'Religious destination', 'Religious organization',
 'Restaurant supply store', 'Scenic spot', 'School', 'Seafood wholesaler', 'Serviced accommodation', 'Shipping and mailing service',
@@ -56,7 +56,12 @@ CATS_TO_REMOVE = ['ATM', 'Accountant', 'Acupuncture clinic', 'Advertising agency
 'Travel agency', 'Tutoring service', 'Unknown', 'Used clothing store', 'Video production service', 'Walk-in clinic', 'Warehouse',
 'Waxing hair removal service', 'Website designer', 'Wedding photographer', 'Wedding planner', 'Wedding store', 'Wedding venue',
 'Wellness center', 'Wellness program', 'Wholesale food store', 'Wholesaler', 'Wine cellar', "Women's clothing store", 'Yoga studio',
-'Youth Centre']
+'Youth Centre', 'Indoor playground', 'Food manufacturing supply', 'Kitchen supply store', 'Chocolate shop', 'Fruit and vegetable wholesaler',
+'Chinese tea house', 'Wholesale bakery', 'Dessert shop', 'Coffee stand', 'Chinese bakery', 'Sushi takeaway', 'Coffee roasters', 'Karaoke bar',
+'Food and drink', 'Steamed bun shop', 'Butcher shop deli', 'Tea and coffee shop', 'Stationery store', 'Chocolate artisan', 'Tea house',
+'Pizza takeaway', 'Delivery Chinese', 'Self service restaurant', 'Sundae restaurant', 'Chocolate cafe', 'Deli', ''
+'Farm shop', 'Lounge', 'Sandwich shop', 'Japanese sweets restaurant',
+]
 
 PLACE_ID_TO_DROP = [
     'ChIJh5Y59BQT2jERURiZLDQx4nw',
@@ -107,7 +112,12 @@ PLACE_ID_TO_DROP = [
     'ChIJ__8_wYwZ2jERtCSn02_fhzY',
     'ChIJo5fvvQwZ2jERz_JUcD4fzkg',
     'ChIJ__-vj-8Z2jERhye3e6pRpaM',
-    'ChIJfaAGgMgZ2jERwVcV4SINwwg'
+    'ChIJfaAGgMgZ2jERwVcV4SINwwg',
+    'ChIJYd_hd0kZ2jERN9FWlI4xJto',
+    'ChIJ9eNkeP4b2jERmH8pwHymE6M',
+    'ChIJk0XVZ9YZ2jERuGEbtTayWNA',
+    'ChIJ5z4oO2MZ2jERB3lOJkfCyhw',
+    'ChIJa58Ty48T2jER7w4mWnrfWEM'
 ]
 
 POSTAL_TO_DISTRICT = {
