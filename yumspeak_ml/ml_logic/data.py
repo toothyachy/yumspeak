@@ -19,40 +19,6 @@ def add_lat_lng(df):
     df['longtitude'] = df['coordinates'].apply(lambda x: x[1])
     return df
 
-'''
-    if isinstance(row['address'], str):
-        try:
-            match = re.search(r'\b\d{6}\b', row['address'])
-            postal_code = match.group(0)
-            row['postal_code'] = postal_code[:2]
-            return row
-        except:
-            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-            row['address'] = f"Singapore {g.json['postal']}"
-            row['postal_code'] = g.json['postal'][:2]
-            return row
-    else:
-        try:
-            g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-            row['address'] = f"Singapore {g.json['postal']}"
-            row['postal_code'] = g.json['postal'][:2]
-            return row
-        except:
-            print(f"Error: {row['address']}")
-            return row['address']
-
-    try:
-        g =geocoder.mapbox(row['coordinates'], method='reverse', key=MAP_API)
-        row['full_postal_code'] = g.json['postal']
-        row['postal_code'] = g.json['postal'][:2]
-        return row
-    except:
-        match = re.search(r'\b\d{6}\b', row['address'])
-        row['full_postal_code'] = match.group(0)
-        row['postal_code'] = row['full_postal_code'][:2]
-        return row
-'''
-
 def get_postal_code(row):
     # get postal code with with mapbox reverse geocoding
     if isinstance(row['address'], str):
@@ -82,22 +48,28 @@ def get_postal_code(row):
 
 # clean dataset
 def clean_restaurant_data(df: pd.DataFrame) -> pd.DataFrame:
-    #drop duplicates with subset 'place_id', 'name', 'reviews', 'address']
-    df = df.drop_duplicates(subset=['place_id', 'name', 'reviews', 'address'])
+    #drop irrelevant columns, rows with null values, df duplicates with subset 'place_id', 'name', 'reviews', 'address']
+    df = df.drop(columns=['Unnamed: 9', 'Unnamed: 10', 'Unnamed: 11', 'Unnamed: 12', 'Unnamed: 13', 'Unnamed: 14', 'Unnamed: 15', 'Unnamed: 16'])
+    df = df.dropna()
 
     # remove irrelevant place based on main_categories
     cats_to_remove = [cat.lower() for cat in CATS_TO_REMOVE]
     mask = df['main_category'].str.lower().isin(cats_to_remove)
     df = df[~mask]
 
-    # remove irrelevant place based by name
-    #df = df[~df['name'].isin(NAME_TO_DROP)]
+    # remove irrelevant place based by name and place_id
+    df = df[~df['name'].isin(NAMES_TO_DROP)]
     df = df[~df['place_id'].isin(PLACE_ID_TO_DROP)]
 
-    # fill na in main_category and categories(as ['unknown'])
-    df['main_category'].fillna('unknown', inplace=True)
+    # main_category 'Restaurant', retrieve category from categories if there are more than 1 category.
+    sec_cat_mask = (df['main_category'] == 'Restaurant') & (df['categories'].apply(lambda x: x != ['Restaurant']))
+    df.loc[sec_cat_mask, 'main_category'] = df['categories'].apply(lambda x: x[1] if len(x) > 1 else x[0])
+
+    # recategorize remaining restaurants and remove ' restaurant' from the data
+    restaurant_cat_mask = df['main_category'] == 'Restaurant'
+    df.loc[restaurant_cat_mask, 'main_category'] = df['name'].apply(lambda x: RESTAURANT_RECATEGORIZATION.get(x, 'Restaurant'))
     df['main_category'] = df['main_category'].apply(lambda x: x.replace(' restaurant', ''))
-    df['categories'] = df['categories'].fillna("['unknown']").apply(ast.literal_eval)
+    df = df.drop_duplicates(subset=['place_id', 'name', 'reviews', 'address'])
 
     # get lat lng from link (+coordinates, latitude, longitude)
     df = add_lat_lng(df)
@@ -111,5 +83,7 @@ def clean_restaurant_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.apply(get_postal_code, axis=1)
     df['district_code'] = df['postal_code'].map(POSTAL_TO_DISTRICT)
     df['region'] = df['district_code'].map(DISTRICT_TO_REGION)
+
+    df = df.dropna()
 
     return df
