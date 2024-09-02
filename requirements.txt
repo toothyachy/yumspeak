@@ -50,3 +50,6 @@ botasaurus-server
 dateutils
 lxml
 regex
+
+# nlp
+nltk
