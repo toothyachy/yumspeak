@@ -53,3 +53,4 @@ regex
 
 # nlp
 nltk
+gensim
