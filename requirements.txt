@@ -54,3 +54,8 @@ regex
 # nlp
 nltk
 gensim
+
+# deep learning
+torch
+transformers
+sentence-transformers
