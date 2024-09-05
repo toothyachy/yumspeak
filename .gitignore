@@ -4,7 +4,13 @@ __pycache__/
 *$py.class
 
 .DS_Store
+*.DS_Store
+.DS_Store
+notebooks/.DS_Store
+\.DS_Store
 
+geocoder/
+**/.DS_Store
 # C extensions
 *.so
 
