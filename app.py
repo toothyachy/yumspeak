@@ -1,0 +1,246 @@
+import streamlit as st
+import geocoder
+import pandas as pd
+import numpy as np
+import json
+import pickle
+import random
+import pydeck as pdk
+from streamlit_js_eval import get_geolocation # https://github.com/aghasemi/streamlit_js_eval
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import cosine_similarity
+from nltk.corpus import stopwords
+from gensim.models import Word2Vec
+from gensim.utils import simple_preprocess
+from yumspeak_ml.params import *
+
+
+# CONFIG SIZE
+st.set_page_config(
+    layout="wide",
+)
+st.markdown(" <style> div[class^='block-container'] { padding-top: 2rem; padding-left: -2rem; padding-right: 0; } </style> ", unsafe_allow_html=True)
+
+
+# GLOBALS
+stop_words = set(stopwords.words('english'))
+custom_stopwords = set([word[0] for word in STOPWORDS])
+stop_words.update(custom_stopwords)
+
+@st.cache_data
+def load_metadata():
+    with open('data/restaurant_metadata.json', 'r') as f:
+        metadata = json.load(f)
+    return metadata
+
+@st.cache_data
+def load_model():
+    return Word2Vec.load("model/word2vec.model")
+
+@st.cache_data
+def load_place_vectors():
+    with open('model/vectors.pkl', 'rb') as f:
+        place_vectors = pickle.load(f)
+    return place_vectors
+
+
+# FUNCTIONS
+# nearby_places = pd.DataFrame({
+#     'name': ['Joo Chiat Banh Mi Ca Phe', 'Banh Mi 233', 'The Viet Roti @ Joo Chiat', 'Nhung Kitchen - Vietnamese Banh Mi', 'Banh Mi Thit by Star Baguette'],
+#     'latitude': [1.310403,1.312772,1.310314,1.322767,1.313885],
+#     'longitude': [103.901791,103.900092,103.901645,103.851969,103.885366],
+#     'similarity': [0.685230,0.680937,0.656748,0.656565,0.653965]
+# })
+
+
+def recommend_restaurants(user_input, num, place_vectors, wv, stop_words):
+    tokenized_input = simple_preprocess(user_input)
+    tokenized_input = [w for w in tokenized_input if w not in stop_words]
+    input_vectors = [wv[word] for word in tokenized_input if word in wv]
+
+    if input_vectors:
+        input_vector = np.mean(input_vectors, axis=0)
+    else:
+        input_vector = np.zeros(wv.vector_size)
+
+    similarities = {}
+
+    for index, values in enumerate(place_vectors):
+        similarity = np.dot(input_vector, values) / (np.linalg.norm(input_vector) * np.linalg.norm(values))
+        similarities[index] = similarity
+
+    # similarities = {index: cosine_similarity(input_vector.reshape(1, -1), vector.reshape(1, -1))[0][0]
+                    # for index, vector in enumerate(place_vectors)}
+
+    # sorted_similarities = dict(sorted(similarities.items(), key=lambda item: item[1], reverse=True)[:num])
+    # sorted_similarities = dict(sorted(similarities.items(), key=lambda item: float(item[1]), reverse=True)[:num])
+
+    sorted_records = sorted(similarities.items(), key=lambda item: float(item[1]), reverse=True)
+    sorted_similarities = {k: v for k, v in sorted_records[:num]}
+
+    return sorted_similarities
+
+
+def fetch_metadata(recommendations, metadata):
+    unique_recommendations = []
+    seen_restaurants = set()
+
+    for key, value in recommendations.items():
+        entry = metadata[int(key)]
+        entry['similarity'] = value
+        unique_recommendations.append(entry)
+
+    # for entry in metadata:
+    #     if entry['name'] not in seen_restaurants and entry['name'] in recommendations:
+    #         unique_recommendations.append(entry)
+    #         seen_restaurants.add(entry['name'])
+
+    return unique_recommendations
+
+
+def recommend_nearby_places(user_lat, user_lon, metadata, k=5):
+    coords = np.array([[entry['latitude'], entry['longtitude']] for entry in metadata])
+
+    knn = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(coords)
+
+    distances, indices = knn.kneighbors([[user_lat, user_lon]])
+
+    nearby_places = [metadata[idx] for idx in indices[0]]
+
+    return nearby_places
+
+def get_latlng(address):
+    g = geocoder.mapbox(f"{address},SG", key=st.secrets['mapbox'])
+    location = {
+        'coords': {
+            'latitude': g.json['lat'],
+            'longitude': g.json['lng'],
+        }}
+    return location
+
+
+# FRONTEND
+st.title("YUMSPEAK")
+st.subheader("Restaurant Recommender for the Discerning Diner")
+
+word2vec = load_model()
+wv = word2vec.wv
+place_vectors = load_place_vectors()
+metadata = load_metadata()
+location = get_geolocation()
+lat = location['coords']['latitude']
+lon = location['coords']['longitude']
+nearby_places = None
+
+
+with st.sidebar:
+    with st.form("user_query"):
+        user_input = st.text_input("Keywords", value=("banh mi"))
+        address = st.text_input("Address", value=("my location"))
+        submitted = st.form_submit_button("Submit")
+
+        if submitted:
+            recommendations = recommend_restaurants(user_input, 10, place_vectors, wv, stop_words)
+
+            restaurant_metadata = fetch_metadata(recommendations, metadata)
+
+            if address != "my location":
+                location = get_latlng(address)
+                lat = location['coords']['latitude']
+                lon = location['coords']['longitude']
+            st.write(f"User's selected address: {address} and coordinates: {location}")
+
+            nearby_places = recommend_nearby_places(location['coords']['latitude'], location['coords']['longitude'], restaurant_metadata, k=5)
+
+
+if nearby_places != None:
+    st.subheader(f"Our Recommendations")
+    names = [i['name'] for i in restaurant_metadata]
+    st.write(f'We recommend {", ".join(names)}')
+
+    st.subheader(f"Places Near You")
+
+    places_data = pd.DataFrame({
+        'lat': [place['latitude'] for place in nearby_places],
+        'lon': [place['longtitude'] for place in nearby_places],
+        'type': ['restaurant' for _ in nearby_places]
+    })
+
+
+    user_location = pd.DataFrame({
+        'lat': [lat],
+        'lon': [lon],
+        'type': ['user']
+    })
+
+
+    map_data = pd.concat([user_location, places_data], ignore_index=True)
+
+    user_layer = pdk.Layer( # resutaurant locaion
+        'ScatterplotLayer',
+        data=user_location,
+        get_position='[lon, lat]',
+        get_color='[255, 0, 0]',
+        get_radius=200,
+        pickable=True
+    )
+
+    restaurant_layer = pdk.Layer( # user location
+        'ScatterplotLayer',
+        data=places_data,
+        get_position='[lon, lat]',
+        get_color='[0, 128, 0]',
+        get_radius=100,
+        pickable=True
+    )
+
+    view_state = pdk.ViewState(
+        latitude=lat,
+        longitude=lon,
+        zoom=12,
+        pitch=50,
+    )
+
+    r = pdk.Deck(layers=[user_layer, restaurant_layer], initial_view_state=view_state)
+    st.pydeck_chart(r)
+
+
+    place_names = [f"{i+1}-{v['name'][:20]}.." for i,v in enumerate(nearby_places)]
+    tabs = st.tabs(place_names)
+
+    for i, tab in enumerate(tabs):
+        with tab:
+            st.subheader(f"{nearby_places[i]['name']}")
+            st.write(f"Address: {nearby_places[i]['address']}")
+            st.write(f"What others say:\n\n{random.choice(nearby_places[i]['review_text'])}")
+            st.write(f"See on Google Map: {nearby_places[i]['link']}")
+
+
+else:
+    st.write("Simply input the keywords and locale you wish to search for!")
+    if location:
+        data = [{"lat": float(lat), "lon": float(lon)}]
+
+        layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=data,
+            get_position=["lon", "lat"],
+            get_radius=10,
+            # get_color=[255, 0, 0], #to change cplor
+            pickable=True,
+        )
+
+        view_state = pdk.ViewState(
+            latitude=float(lat),
+            longitude=float(lon),
+            zoom=15,
+            pitch=0,
+        )
+
+        st.pydeck_chart(pdk.Deck(
+            map_style='mapbox://styles/mapbox/streets-v11',
+            initial_view_state=view_state,
+            layers=[layer],
+        ))
+    else:
+        st.error("Failed to get geolocation. Please ensure your browser allows location access and try again.")

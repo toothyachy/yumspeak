@@ -8,6 +8,28 @@ MAP_API = os.environ.get('MAP_API')
 
 
 ##################  CONSTANTS  #####################
+STOPWORDS = [('food', 407452),
+ ('good', 248393),
+ ('service', 217139),
+ ('great', 138171),
+ ('staff', 117568),
+ ('nice', 110294),
+ ('place', 108332),
+ ('restaurant', 86786),
+ ('dish', 84913),
+ ('time', 78530),
+ ('delicious', 78503),
+ ('friendly', 73322),
+ ('really', 72500),
+ ('u', 66628),
+ ('taste', 65326),
+ ('also', 61263),
+ ('experience', 61009),
+ ('like', 60406),
+ ('one', 57355),
+ ('back', 56299)]
+
+
 # main_category to remove from restaurant_name.csv
 CATS_TO_REMOVE = ['Manufacturer', 'Maternity store', 'Mining company', 'Barber shop', 'Preschool', 'Bazar',
 "Women's clothing store", 'Dessert shop', 'Art gallery', 'Branding agency', 'Medical equipment supplier',

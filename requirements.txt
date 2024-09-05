@@ -59,3 +59,9 @@ gensim
 torch
 transformers
 sentence-transformers
+
+# streamlit
+streamlit
+geocoder
+streamlit_js_eval
+pydeck
