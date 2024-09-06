@@ -54,6 +54,7 @@ regex
 # nlp
 nltk
 gensim
+wordcloud
 
 # deep learning
 torch

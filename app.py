@@ -13,7 +13,7 @@ from nltk.corpus import stopwords
 from gensim.models import Word2Vec
 from gensim.utils import simple_preprocess
 from yumspeak_ml.params import *
-
+from yumspeak_ml.ml_logic.wordcloud import *
 
 # CONFIG SIZE
 st.set_page_config(
@@ -69,12 +69,6 @@ def recommend_restaurants(user_input, num, place_vectors, wv, stop_words):
         similarity = np.dot(input_vector, values) / (np.linalg.norm(input_vector) * np.linalg.norm(values))
         similarities[index] = similarity
 
-    # similarities = {index: cosine_similarity(input_vector.reshape(1, -1), vector.reshape(1, -1))[0][0]
-                    # for index, vector in enumerate(place_vectors)}
-
-    # sorted_similarities = dict(sorted(similarities.items(), key=lambda item: item[1], reverse=True)[:num])
-    # sorted_similarities = dict(sorted(similarities.items(), key=lambda item: float(item[1]), reverse=True)[:num])
-
     sorted_records = sorted(similarities.items(), key=lambda item: float(item[1]), reverse=True)
     sorted_similarities = {k: v for k, v in sorted_records[:num]}
 
@@ -128,14 +122,15 @@ wv = word2vec.wv
 place_vectors = load_place_vectors()
 metadata = load_metadata()
 location = get_geolocation()
-lat = location['coords']['latitude']
-lon = location['coords']['longitude']
+if location:
+    lat = location['coords']['latitude']
+    lon = location['coords']['longitude']
 nearby_places = None
 
 
 with st.sidebar:
     with st.form("user_query"):
-        user_input = st.text_input("Keywords", value=("banh mi"))
+        user_input = st.text_input("Keywords")
         address = st.text_input("Address", value=("my location"))
         submitted = st.form_submit_button("Submit")
 
@@ -157,7 +152,6 @@ if nearby_places != None:
     st.subheader(f"Our Recommendations")
     names = [i['name'] for i in restaurant_metadata]
     st.write(f'We recommend {", ".join(names)}')
-
     st.subheader(f"Places Near You")
 
     places_data = pd.DataFrame({
@@ -198,10 +192,10 @@ if nearby_places != None:
         latitude=lat,
         longitude=lon,
         zoom=12,
-        pitch=50,
+        pitch=0,
     )
 
-    r = pdk.Deck(layers=[user_layer, restaurant_layer], initial_view_state=view_state)
+    r = pdk.Deck(map_style='mapbox://styles/mapbox/streets-v11', layers=[user_layer, restaurant_layer], initial_view_state=view_state)
     st.pydeck_chart(r)
 
 
@@ -213,7 +207,8 @@ if nearby_places != None:
             st.subheader(f"{nearby_places[i]['name']}")
             st.write(f"Address: {nearby_places[i]['address']}")
             st.write(f"What others say:\n\n{random.choice(nearby_places[i]['review_text'])}")
-            st.write(f"See on Google Map: {nearby_places[i]['link']}")
+            # st.write(f"See on Google Map: {nearby_places[i]['link']}")
+            st.markdown(f"See on Google Map: [here]({nearby_places[i]['link']})")
 
 
 else:
