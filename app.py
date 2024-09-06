@@ -5,6 +5,8 @@ import numpy as np
 import json
 import pickle
 import random
+import ast
+import joblib
 import pydeck as pdk
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
@@ -16,14 +18,14 @@ from nltk.corpus import stopwords
 from gensim.models import Word2Vec
 from gensim.utils import simple_preprocess
 from yumspeak_ml.params import *
-from yumspeak_ml.ml_logic.wordcloud import *
+
 
 # CONFIG SIZE
 st.set_page_config(
     layout="wide",
 )
 st.markdown(" <style> div[class^='block-container'] { padding-top: 2rem; padding-left: -2rem; padding-right: 0; } </style> ", unsafe_allow_html=True)
-
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # GLOBALS
 stop_words = set(stopwords.words('english'))
@@ -51,6 +53,8 @@ def load_tokens():
     with open('model/tokens.pkl', 'rb') as f:
         tokens = pickle.load(f)
     return tokens
+
+
 
 # FUNCTIONS
 # nearby_places = pd.DataFrame({
@@ -90,6 +94,7 @@ def fetch_metadata(recommendations, metadata):
     for key, value in recommendations.items():
         entry = metadata[int(key)]
         entry['similarity'] = value
+        entry['global_index'] = key
         unique_recommendations.append(entry)
 
     # for entry in metadata:
@@ -101,7 +106,7 @@ def fetch_metadata(recommendations, metadata):
 
 
 def recommend_nearby_places(user_lat, user_lon, metadata, k=5):
-    coords = np.array([[entry['latitude'], entry['longtitude']] for entry in metadata])
+    coords = np.array([[entry['latitude'], entry['longitude']] for entry in metadata])
 
     knn = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(coords)
 
@@ -123,7 +128,7 @@ def get_latlng(address):
 def get_wordcloud(index, tokens):
     frequency = Counter(tokens[index])
     word_freq = dict(frequency)
-    wordcloud = WordCloud(width=800, height=400, background_color='white', colormap='viridis').generate_from_frequencies(word_freq)
+    wordcloud = WordCloud(width=800, height=400, background_color='#F8EDE3', colormap='viridis').generate_from_frequencies(word_freq)
     return wordcloud
 
 
@@ -158,23 +163,27 @@ with st.sidebar:
                 location = get_latlng(address)
                 lat = location['coords']['latitude']
                 lon = location['coords']['longitude']
-            st.write(f"User's selected address: {address} and coordinates: {location}")
+            # st.write(f"User's selected address: {address} and coordinates: {location}")
 
             nearby_places = recommend_nearby_places(location['coords']['latitude'], location['coords']['longitude'], restaurant_metadata, k=5)
 
 
 if nearby_places != None:
-    st.subheader(f"Our Recommendations")
-    names = [i['name'] for i in restaurant_metadata]
-    st.write(f'We recommend {", ".join(names)}')
+
+    # st.subheader(f"Our Recommendations")
+    # names = [restaurant['name'] for restaurant in restaurant_metadata]
+    # st.write(f'We recommend {", ".join(names)}')
+
     st.subheader(f"Places Near You")
+
+    # nb = [f"name: {restaurant['name']}, similarity: {restaurant['similarity']}, key: {restaurant['global_index']}" for restaurant in nearby_places]
+    # st.write(nb)
 
     places_data = pd.DataFrame({
         'lat': [place['latitude'] for place in nearby_places],
-        'lon': [place['longtitude'] for place in nearby_places],
+        'lon': [place['longitude'] for place in nearby_places],
         'type': ['restaurant' for _ in nearby_places]
     })
-
 
     user_location = pd.DataFrame({
         'lat': [lat],
@@ -182,10 +191,9 @@ if nearby_places != None:
         'type': ['user']
     })
 
-
     map_data = pd.concat([user_location, places_data], ignore_index=True)
 
-    user_layer = pdk.Layer( # resutaurant locaion
+    user_layer = pdk.Layer( # restaurant locaion
         'ScatterplotLayer',
         data=user_location,
         get_position='[lon, lat]',
@@ -213,33 +221,33 @@ if nearby_places != None:
     r = pdk.Deck(map_style='mapbox://styles/mapbox/streets-v11', layers=[user_layer, restaurant_layer], initial_view_state=view_state)
     st.pydeck_chart(r)
 
-
     place_names = [f"{i+1}-{v['name'][:20]}.." for i,v in enumerate(nearby_places)]
     tabs = st.tabs(place_names)
 
     for i, tab in enumerate(tabs):
         with tab:
-            st.subheader(f"{nearby_places[i]['name']}")
-            st.write(f"Address: {nearby_places[i]['address']}")
-            st.write(f"What others say:\n\n{random.choice(nearby_places[i]['review_text'])}")
-            st.markdown(f"See on Google Map: [here]({nearby_places[i]['link']})")
+            st.title(f"{nearby_places[i]['name']} - {nearby_places[i]['main_rating']} ({nearby_places[i]['cuisine']})")
+            st.write(f"{nearby_places[i]['address']} [See on Google Map]({nearby_places[i]['link']})")
 
-            wordcloud = get_wordcloud(i, tokens)
+            st.subheader(f"What Others Say")
+            col1, col2 = st.columns([3,2])
 
-            # plt.figure(figsize = (15, 10))
-            # plt.imshow(wordcloud, interpolation="bilinear")
-            # plt.axis("off")
-            # plt.show()
-            # st.image(wordcloud.to_array())
+            with col1:
+                wordcloud = get_wordcloud(nearby_places[i]['global_index'], tokens)
+                st.image(wordcloud.to_array(), width=600)
 
-            # plt.imshow(wordcloud, interpolation='bilinear')
-            # plt.axis("off")
-            # plt.show()
-            # st.pyplot(plt)
-            plt.figure(figsize=(10, 5))
-            plt.imshow(wordcloud, interpolation='bilinear')
-            plt.axis('off')
-            st.pyplot(plt)
+            with col2:
+                random_indices = random.sample(range(0, len(nearby_places[i]['review_text'])), 5)
+
+                for idx, random_index in enumerate(random_indices):
+                    expander = st.expander(f"Review {idx + 1}")
+                    with expander:
+                        st.write(nearby_places[i]['review_text'][random_index])
+
+            photos = ast.literal_eval(nearby_places[i]['review_photos'])[:20]
+            if isinstance(photos, list):
+                st.image(photos)
+
 
 else:
     st.write("Simply input the keywords and locale you wish to search for!")
@@ -251,14 +259,14 @@ else:
             data=data,
             get_position=["lon", "lat"],
             get_radius=10,
-            # get_color=[255, 0, 0], #to change cplor
+            get_color='[255, 0, 0]',
             pickable=True,
         )
 
         view_state = pdk.ViewState(
             latitude=float(lat),
             longitude=float(lon),
-            zoom=15,
+            zoom=16,
             pitch=0,
         )
 
