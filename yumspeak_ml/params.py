@@ -4,10 +4,6 @@ import os
 MAP_API = os.environ.get('MAP_API')
 
 ##################  VARIABLES  ##################
-
-
-
-##################  CONSTANTS  #####################
 # main_category to remove from restaurant_name.csv
 CATS_TO_REMOVE = ['Manufacturer', 'Maternity store', 'Mining company', 'Barber shop', 'Preschool', 'Bazar',
 "Women's clothing store", 'Dessert shop', 'Art gallery', 'Branding agency', 'Medical equipment supplier',
@@ -620,4 +616,8 @@ DISTRICT_TO_REGION = {
     '19': 'North', '20': 'North', '21': 'West', '22': 'West', '23': 'West', '24': 'West',
     '25': 'North', '26': 'North', '27': 'North', '28': 'North'
 }
+
+##################  CONSTANTS  #####################
+
+
 ################## VALIDATIONS #################

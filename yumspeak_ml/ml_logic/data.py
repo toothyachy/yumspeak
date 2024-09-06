@@ -14,10 +14,10 @@ def find_coordinates(link):
     return coordinates
 
 def add_lat_lng(restaurants_df):
-    # get coordinates, + latitude, longtitude
+    # get coordinates, + latitude, longitude
     restaurants_df['coordinates'] = restaurants_df['link'].apply(lambda x: find_coordinates(x))
     restaurants_df['latitude'] = restaurants_df['coordinates'].apply(lambda x: x[0])
-    restaurants_df['longtitude'] = restaurants_df['coordinates'].apply(lambda x: x[1])
+    restaurants_df['longitude'] = restaurants_df['coordinates'].apply(lambda x: x[1])
     return restaurants_df
 
 def get_postal_code(row):
@@ -47,7 +47,7 @@ def get_postal_code(row):
             return row['address']
 
 
-# clean dataset
+# clean and merge dataset after scraping
 def clean_data(restaurants_df:pd.DataFrame, reviews_df:pd.DataFrame) -> pd.DataFrame:
     # restaurant df
     # drop irrelevant columns, rows with null values, restaurants_df duplicates with subset 'place_id', 'name', 'reviews', 'address']
@@ -87,13 +87,14 @@ def clean_data(restaurants_df:pd.DataFrame, reviews_df:pd.DataFrame) -> pd.DataF
 
     # filter out places with coordinates outside of SG
     restaurants_df = restaurants_df[restaurants_df['latitude'].between(left=1.129, right=1.493)]
-    restaurants_df = restaurants_df[restaurants_df['longtitude'].between(left=103.557, right=104.131)]
+    restaurants_df = restaurants_df[restaurants_df['longitude'].between(left=103.557, right=104.131)]
     restaurants_df = restaurants_df.reset_index(drop=True)
 
     # get postal code with with mapbox reverse geocoding, extract district_code and region
     restaurants_df = restaurants_df.apply(get_postal_code, axis=1)
     restaurants_df['district_code'] = restaurants_df['postal_code'].map(POSTAL_TO_DISTRICT)
     restaurants_df['region'] = restaurants_df['district_code'].map(DISTRICT_TO_REGION)
+    restaurants_df = restaurants_df[~(restaurants_df['full_postal_code'].str.len() < 6)]
 
     # drop all places not in SG
     restaurants_df = restaurants_df.dropna()
@@ -131,5 +132,8 @@ def clean_data(restaurants_df:pd.DataFrame, reviews_df:pd.DataFrame) -> pd.DataF
 
     # Remove duplicates
     merged_df = merged_df.drop_duplicates()
+
+    # drop unnecessary columns
+    merged_df = merged_df.drop(columns=['reviews', 'main_category', 'full_postal_code', 'postal_code', 'district_code', 'region', 'rating', 'published_at_date', 'review_likes_count', 'response_from_owner_text', 'total_number_of_reviews_by_reviewer', 'total_number_of_photos_by_reviewer', 'is_local_guide'])
 
     return merged_df
