@@ -6,6 +6,9 @@ import json
 import pickle
 import random
 import pydeck as pdk
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+from collections import Counter
 from streamlit_js_eval import get_geolocation # https://github.com/aghasemi/streamlit_js_eval
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
@@ -43,6 +46,11 @@ def load_place_vectors():
         place_vectors = pickle.load(f)
     return place_vectors
 
+@st.cache_data
+def load_tokens():
+    with open('model/tokens.pkl', 'rb') as f:
+        tokens = pickle.load(f)
+    return tokens
 
 # FUNCTIONS
 # nearby_places = pd.DataFrame({
@@ -112,6 +120,12 @@ def get_latlng(address):
         }}
     return location
 
+def get_wordcloud(index, tokens):
+    frequency = Counter(tokens[index])
+    word_freq = dict(frequency)
+    wordcloud = WordCloud(width=800, height=400, background_color='white', colormap='viridis').generate_from_frequencies(word_freq)
+    return wordcloud
+
 
 # FRONTEND
 st.title("YUMSPEAK")
@@ -120,6 +134,7 @@ st.subheader("Restaurant Recommender for the Discerning Diner")
 word2vec = load_model()
 wv = word2vec.wv
 place_vectors = load_place_vectors()
+tokens = load_tokens()
 metadata = load_metadata()
 location = get_geolocation()
 if location:
@@ -130,7 +145,7 @@ nearby_places = None
 
 with st.sidebar:
     with st.form("user_query"):
-        user_input = st.text_input("Keywords")
+        user_input = st.text_input("Keywords", value=("banh mi"))
         address = st.text_input("Address", value=("my location"))
         submitted = st.form_submit_button("Submit")
 
@@ -207,9 +222,24 @@ if nearby_places != None:
             st.subheader(f"{nearby_places[i]['name']}")
             st.write(f"Address: {nearby_places[i]['address']}")
             st.write(f"What others say:\n\n{random.choice(nearby_places[i]['review_text'])}")
-            # st.write(f"See on Google Map: {nearby_places[i]['link']}")
             st.markdown(f"See on Google Map: [here]({nearby_places[i]['link']})")
 
+            wordcloud = get_wordcloud(i, tokens)
+
+            # plt.figure(figsize = (15, 10))
+            # plt.imshow(wordcloud, interpolation="bilinear")
+            # plt.axis("off")
+            # plt.show()
+            # st.image(wordcloud.to_array())
+
+            # plt.imshow(wordcloud, interpolation='bilinear')
+            # plt.axis("off")
+            # plt.show()
+            # st.pyplot(plt)
+            plt.figure(figsize=(10, 5))
+            plt.imshow(wordcloud, interpolation='bilinear')
+            plt.axis('off')
+            st.pyplot(plt)
 
 else:
     st.write("Simply input the keywords and locale you wish to search for!")
