@@ -56,11 +56,6 @@ nltk
 gensim
 wordcloud
 
-# deep learning
-torch
-transformers
-sentence-transformers
-
 # streamlit
 streamlit
 geocoder

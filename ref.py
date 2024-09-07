@@ -184,3 +184,41 @@ if location:
     ))
 else:
     st.error("Failed to get geolocation. Please ensure your browser allows location access and try again.") #in case of any errpr
+
+
+import streamlit as st
+import joblib
+import json
+from sentence_transformers import SentenceTransformer, util
+
+
+with open('data/restaurant_metadata.json') as json_file:
+    restaurant_data = json.load(json_file)
+
+
+review_embeddings = joblib.load('notebooks/review_embeddings.pkl')
+
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+user_input = st.text_input("Enter your food preference (e.g., sushi, pizza, seafood):")
+
+
+if user_input:
+
+    input_embedding = model.encode(user_input, convert_to_tensor=True)
+    cosine_scores = util.pytorch_cos_sim(input_embedding, review_embeddings)[0].cpu().numpy()
+    top_5_indices = cosine_scores.argsort()[-5:][::-1]
+
+
+    for i in top_5_indices:
+        restaurant = restaurant_data[i]
+
+
+        st.write(f"Restaurant: {restaurant['name']}")
+        st.write(f"Rating: {restaurant.get('main_rating', 'N/A')} | Address: {restaurant.get('address', 'N/A')}")
+        st.write(f"Link: {restaurant.get('link', 'N/A')}")
+        st.write(f"Location: ({restaurant.get('latitude', 'N/A')}, {restaurant.get('longtitude', 'N/A')})")
+
+        if restaurant['review_text']:
+            st.write(f"Review: {restaurant['review_text'][0][:250]}...")
+        st.write("---------------------------------------")
